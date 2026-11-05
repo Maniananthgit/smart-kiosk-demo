@@ -29,8 +29,8 @@ jobs:
 
       - name: Run Backend Pytest Suite
         env:
-          DATABASE_URL: sqlite+aiosqlite:///:memory:
-          PYTHONPATH: .
+          DATABASE_URL: "sqlite+aiosqlite:///:memory:"
+          PYTHONPATH: "."
         run: |
           cd backend
           python -m pytest tests/ -v
