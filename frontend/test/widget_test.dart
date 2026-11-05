@@ -28,6 +28,8 @@ void main() {
       ),
     );
 
+    await tester.pumpAndSettle();
+
     // Verify Brand title is rendered
     expect(find.text(AppConstants.appName), findsOneWidget);
     expect(find.text('Select Table Number'), findsOneWidget);

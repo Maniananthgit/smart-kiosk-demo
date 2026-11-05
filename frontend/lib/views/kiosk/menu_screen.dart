@@ -2,11 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
 
-import 'package:smart_kiosk/core/constants/app_constants.dart';
 import 'package:smart_kiosk/core/theme/app_theme.dart';
 import 'package:smart_kiosk/models/menu_item.dart';
 import 'package:smart_kiosk/viewmodels/cart_viewmodel.dart';
 import 'package:smart_kiosk/viewmodels/kiosk_viewmodel.dart';
+import 'package:smart_kiosk/views/common/demo_navigation_bar.dart';
 import 'package:smart_kiosk/views/kiosk/widgets/cart_drawer.dart';
 import 'package:smart_kiosk/views/kiosk/widgets/item_customizer_dialog.dart';
 import 'package:smart_kiosk/views/kiosk/widgets/waiter_call_dialog.dart';
@@ -81,116 +81,226 @@ class _MenuScreenState extends State<MenuScreen> {
 
     return Scaffold(
       key: _scaffoldKey,
-      backgroundColor: AppTheme.darkBg,
+      backgroundColor: const Color(0xFF020617),
+      appBar: const DemoNavigationBar(currentRoute: '/kiosk'),
       endDrawer: const CartDrawer(),
-      appBar: AppBar(
-        automaticallyImplyLeading: false,
-        title: Row(
-          children: [
-            InkWell(
-              onTap: () => context.go('/'),
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                decoration: BoxDecoration(
-                  color: AppTheme.primary.withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: AppTheme.primary),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(Icons.table_restaurant, size: 16, color: AppTheme.primary),
-                    const SizedBox(width: 6),
-                    Text(
-                      'Table ${kioskVM.tableNumber}',
-                      style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white),
-                    ),
-                  ],
-                ),
+      floatingActionButton: cartVM.itemCount > 0
+          ? FloatingActionButton.extended(
+              onPressed: () => _scaffoldKey.currentState?.openEndDrawer(),
+              backgroundColor: const Color(0xFFEA580C),
+              foregroundColor: Colors.white,
+              elevation: 8,
+              icon: const Icon(Icons.shopping_bag_rounded),
+              label: Text(
+                '${cartVM.itemCount} items • ₹${cartVM.total.toStringAsFixed(0)} | View Order →',
+                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
               ),
-            ),
-            const SizedBox(width: 12),
-            const Text(
-              'OrderEase',
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
-            ),
-          ],
-        ),
-        actions: [
-          // Waiter Call
-          TextButton.icon(
-            onPressed: _openWaiterDialog,
-            icon: const Icon(Icons.notifications_outlined, color: AppTheme.primary, size: 18),
-            label: const Text('Call Waiter', style: TextStyle(color: AppTheme.primary)),
-          ),
-          const SizedBox(width: 8),
-          // Language Badge
-          PopupMenuButton<String>(
-            icon: const Icon(Icons.language, color: Colors.white70),
-            tooltip: 'Change Language',
-            onSelected: (code) => kioskVM.setLanguage(code),
-            itemBuilder: (context) => [
-              const PopupMenuItem(value: 'en', child: Text('🇬🇧 English')),
-              const PopupMenuItem(value: 'ta', child: Text('🇮🇳 தமிழ்')),
-              const PopupMenuItem(value: 'hi', child: Text('🇮🇳 हिंदी')),
-              const PopupMenuItem(value: 'te', child: Text('🇮🇳 తెలుగు')),
-              const PopupMenuItem(value: 'es', child: Text('🇪🇸 Español')),
-            ],
-          ),
-          // Staff Portal Link
-          IconButton(
-            icon: const Icon(Icons.admin_panel_settings_outlined, color: Colors.white70),
-            tooltip: 'Staff / KDS Portal',
-            onPressed: () => context.push('/login'),
-          ),
-          const SizedBox(width: 8),
-        ],
-      ),
+            )
+          : null,
       body: Column(
         children: [
-          // Search & Filter Bar
+          // 1. Top Sub-Header Bar (Table, Waiter, Language, Cart Button)
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
             decoration: const BoxDecoration(
-              color: AppTheme.darkCard,
-              border: Border(bottom: BorderSide(color: AppTheme.darkBorder)),
+              color: Color(0xFF0F172A),
+              border: Border(bottom: BorderSide(color: Color(0xFF1E293B))),
             ),
+            child: Row(
+              children: [
+                // Table Badge
+                InkWell(
+                  onTap: () => context.go('/welcome'),
+                  borderRadius: BorderRadius.circular(8),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFEA580C).withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: const Color(0xFFEA580C)),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.table_restaurant, size: 16, color: Color(0xFFEA580C)),
+                        const SizedBox(width: 6),
+                        Text(
+                          'Table ${kioskVM.tableNumber}',
+                          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.white),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                // Assigned Waiter Badge
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF1E293B),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.person_pin_rounded, size: 14, color: Color(0xFFF59E0B)),
+                      SizedBox(width: 6),
+                      Text(
+                        'Waiter: Rajesh • Zone A',
+                        style: TextStyle(fontSize: 12, color: Color(0xFFCBD5E1), fontWeight: FontWeight.w600),
+                      ),
+                    ],
+                  ),
+                ),
+
+                const Spacer(),
+
+                // Call Waiter Button
+                TextButton.icon(
+                  onPressed: _openWaiterDialog,
+                  icon: const Icon(Icons.notifications_active_rounded, color: Color(0xFFF59E0B), size: 16),
+                  label: const Text('Call Waiter', style: TextStyle(color: Color(0xFFF59E0B), fontSize: 12, fontWeight: FontWeight.bold)),
+                ),
+                const SizedBox(width: 8),
+
+                // Language Dropdown
+                PopupMenuButton<String>(
+                  icon: const Icon(Icons.language, color: Colors.white70, size: 18),
+                  tooltip: 'Change Language',
+                  onSelected: (code) => kioskVM.setLanguage(code),
+                  itemBuilder: (context) => [
+                    const PopupMenuItem(value: 'en', child: Text('🇬🇧 English')),
+                    const PopupMenuItem(value: 'ta', child: Text('🇮🇳 தமிழ்')),
+                    const PopupMenuItem(value: 'hi', child: Text('🇮🇳 हिंदी')),
+                    const PopupMenuItem(value: 'te', child: Text('🇮🇳 తెలుగు')),
+                    const PopupMenuItem(value: 'es', child: Text('🇪🇸 Español')),
+                  ],
+                ),
+                const SizedBox(width: 8),
+
+                // Cart Trigger Pill
+                InkWell(
+                  onTap: () => _scaffoldKey.currentState?.openEndDrawer(),
+                  borderRadius: BorderRadius.circular(20),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFEA580C),
+                      borderRadius: BorderRadius.circular(20),
+                      boxShadow: [
+                        BoxShadow(
+                          color: const Color(0xFFEA580C).withValues(alpha: 0.3),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.shopping_bag_rounded, size: 15, color: Colors.white),
+                        const SizedBox(width: 6),
+                        Text(
+                          '${cartVM.itemCount} items • ₹${cartVM.total.toStringAsFixed(0)}',
+                          style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w900),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          // 2. Luxury Service Status Banner
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            decoration: const BoxDecoration(
+              color: Color(0xFF0F172A),
+              border: Border(bottom: BorderSide(color: Color(0xFF1E293B))),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 8,
+                  height: 8,
+                  decoration: const BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: Color(0xFF10B981),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                const Text(
+                  'Royal Evening Dinner Service • 7:00 PM – 11:30 PM (Late Night Sizzlers)',
+                  style: TextStyle(
+                    color: Color(0xFFF59E0B),
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const Spacer(),
+                const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.access_time_rounded, size: 12, color: Color(0xFF94A3B8)),
+                    SizedBox(width: 4),
+                    Text('Time-Synchronized Menu', style: TextStyle(color: Color(0xFF94A3B8), fontSize: 11)),
+                  ],
+                ),
+              ],
+            ),
+          ),
+
+          // 3. Search Bar & Diet Filters
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            color: const Color(0xFF0F172A),
             child: Row(
               children: [
                 Expanded(
                   child: TextField(
                     onChanged: (val) => kioskVM.setSearchQuery(val),
-                    style: const TextStyle(color: Colors.white, fontSize: 14),
+                    style: const TextStyle(color: Colors.white, fontSize: 13),
                     decoration: InputDecoration(
-                      hintText: 'Search delicious dishes...',
-                      hintStyle: const TextStyle(color: Colors.white38, fontSize: 14),
-                      prefixIcon: const Icon(Icons.search, size: 20, color: Colors.white60),
+                      hintText: 'Search for curries, tandoors, biryanis, desserts...',
+                      hintStyle: const TextStyle(color: Color(0xFF64748B), fontSize: 13),
+                      prefixIcon: const Icon(Icons.search, size: 18, color: Color(0xFF94A3B8)),
                       filled: true,
-                      fillColor: AppTheme.darkBg,
+                      fillColor: const Color(0xFF020617),
                       contentPadding: const EdgeInsets.symmetric(vertical: 8),
                       border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10),
-                        borderSide: const BorderSide(color: AppTheme.darkBorder),
+                        borderRadius: BorderRadius.circular(20),
+                        borderSide: const BorderSide(color: Color(0xFF1E293B)),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(20),
+                        borderSide: const BorderSide(color: Color(0xFF1E293B)),
                       ),
                     ),
                   ),
                 ),
                 const SizedBox(width: 12),
-                // Veg Switch
+                // Veg Only Filter
                 FilterChip(
                   label: const Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Text('🌱 Veg Only'),
+                      Icon(Icons.eco_rounded, size: 14, color: Color(0xFF10B981)),
+                      SizedBox(width: 4),
+                      Text('Veg Only'),
                     ],
                   ),
                   selected: kioskVM.isVegOnly,
-                  selectedColor: AppTheme.accent.withOpacity(0.2),
-                  checkmarkColor: AppTheme.accent,
-                  backgroundColor: AppTheme.darkBg,
+                  selectedColor: const Color(0xFF10B981).withValues(alpha: 0.2),
+                  checkmarkColor: const Color(0xFF10B981),
+                  backgroundColor: const Color(0xFF020617),
+                  side: BorderSide(
+                    color: kioskVM.isVegOnly ? const Color(0xFF10B981) : const Color(0xFF1E293B),
+                  ),
                   labelStyle: TextStyle(
-                    color: kioskVM.isVegOnly ? AppTheme.accent : Colors.white70,
+                    color: kioskVM.isVegOnly ? const Color(0xFF10B981) : const Color(0xFFCBD5E1),
                     fontWeight: kioskVM.isVegOnly ? FontWeight.bold : FontWeight.normal,
-                    fontSize: 13,
+                    fontSize: 12,
                   ),
                   onSelected: (_) => kioskVM.toggleVegOnly(),
                 ),
@@ -198,12 +308,12 @@ class _MenuScreenState extends State<MenuScreen> {
             ),
           ),
 
-          // Category Horizontal Tabs
+          // 4. Categories Horizontal Pills
           if (kioskVM.categories.isNotEmpty)
             Container(
-              height: 50,
-              padding: const EdgeInsets.symmetric(vertical: 6),
-              color: AppTheme.darkCard,
+              height: 48,
+              padding: const EdgeInsets.symmetric(vertical: 4),
+              color: const Color(0xFF0F172A),
               child: ListView.separated(
                 scrollDirection: Axis.horizontal,
                 padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -215,12 +325,15 @@ class _MenuScreenState extends State<MenuScreen> {
                   return ChoiceChip(
                     label: Text(cat.getLocalizedName(kioskVM.selectedLanguage)),
                     selected: isSelected,
-                    selectedColor: AppTheme.primary,
-                    backgroundColor: AppTheme.darkBg,
+                    selectedColor: const Color(0xFFEA580C),
+                    backgroundColor: const Color(0xFF020617),
+                    side: BorderSide(
+                      color: isSelected ? const Color(0xFFEA580C) : const Color(0xFF1E293B),
+                    ),
                     labelStyle: TextStyle(
-                      color: isSelected ? Colors.white : Colors.white70,
-                      fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                      fontSize: 13,
+                      color: isSelected ? Colors.white : const Color(0xFF94A3B8),
+                      fontWeight: isSelected ? FontWeight.w900 : FontWeight.w600,
+                      fontSize: 12,
                     ),
                     onSelected: (val) {
                       if (val) kioskVM.selectCategory(cat.id);
@@ -230,171 +343,34 @@ class _MenuScreenState extends State<MenuScreen> {
               ),
             ),
 
-          // Menu Items Grid
+          const Divider(height: 1, color: Color(0xFF1E293B)),
+
+          // 5. Food Menu Items Grid
           Expanded(
             child: kioskVM.isLoading
-                ? const Center(child: CircularProgressIndicator(color: AppTheme.primary))
+                ? const Center(child: CircularProgressIndicator(color: Color(0xFFF59E0B)))
                 : kioskVM.filteredItems.isEmpty
                     ? const Center(
-                        child: Text('No dishes match your filter', style: TextStyle(color: Colors.white60)),
+                        child: Text('No dishes match your filter', style: TextStyle(color: Color(0xFF94A3B8))),
                       )
                     : LayoutBuilder(
                         builder: (context, constraints) {
-                          // Adaptive columns: 1 for mobile, 2 for tablet, 3-4 for large tablet/desktop
-                          final crossAxisCount = constraints.maxWidth > 900
+                          final crossAxisCount = constraints.maxWidth > 950
                               ? 3
-                              : (constraints.maxWidth > 600 ? 2 : 1);
+                              : (constraints.maxWidth > 650 ? 2 : 1);
 
                           return GridView.builder(
                             padding: const EdgeInsets.all(16),
                             gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                               crossAxisCount: crossAxisCount,
-                              childAspectRatio: 0.85,
+                              childAspectRatio: 0.82,
                               crossAxisSpacing: 16,
                               mainAxisSpacing: 16,
                             ),
                             itemCount: kioskVM.filteredItems.length,
                             itemBuilder: (context, index) {
                               final item = kioskVM.filteredItems[index];
-                              return Card(
-                                clipBehavior: Clip.antiAlias,
-                                child: InkWell(
-                                  onTap: item.isAvailable ? () => _openCustomizer(item) : null,
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      // Image & Badges
-                                      Stack(
-                                        children: [
-                                          item.imageUrl != null
-                                              ? Image.network(
-                                                  item.imageUrl!,
-                                                  height: 140,
-                                                  width: double.infinity,
-                                                  fit: BoxFit.cover,
-                                                  errorBuilder: (_, __, ___) => Container(
-                                                    height: 140,
-                                                    color: AppTheme.darkBg,
-                                                    child: const Center(
-                                                      child: Icon(Icons.fastfood, size: 48, color: Colors.white24),
-                                                    ),
-                                                  ),
-                                                )
-                                              : Container(
-                                                  height: 140,
-                                                  color: AppTheme.darkBg,
-                                                  child: const Center(
-                                                    child: Icon(Icons.fastfood, size: 48, color: Colors.white24),
-                                                  ),
-                                                ),
-                                          // Availability Overlay
-                                          if (!item.isAvailable)
-                                            Container(
-                                              height: 140,
-                                              color: Colors.black.withOpacity(0.7),
-                                              child: const Center(
-                                                child: Text(
-                                                  'SOLD OUT',
-                                                  style: TextStyle(
-                                                    color: Colors.redAccent,
-                                                    fontSize: 18,
-                                                    fontWeight: FontWeight.bold,
-                                                    letterSpacing: 2,
-                                                  ),
-                                                ),
-                                              ),
-                                            ),
-                                          // Veg / NonVeg Tag
-                                          Positioned(
-                                            top: 8,
-                                            left: 8,
-                                            child: Container(
-                                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                              decoration: BoxDecoration(
-                                                color: Colors.black87,
-                                                borderRadius: BorderRadius.circular(4),
-                                              ),
-                                              child: Text(
-                                                item.isVeg ? '🌱 Veg' : '🍗 Non-Veg',
-                                                style: TextStyle(
-                                                  color: item.isVeg ? AppTheme.accent : Colors.orangeAccent,
-                                                  fontSize: 11,
-                                                  fontWeight: FontWeight.bold,
-                                                ),
-                                              ),
-                                            ),
-                                          ),
-                                          // Prep Time
-                                          Positioned(
-                                            top: 8,
-                                            right: 8,
-                                            child: Container(
-                                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                              decoration: BoxDecoration(
-                                                color: Colors.black87,
-                                                borderRadius: BorderRadius.circular(4),
-                                              ),
-                                              child: Text(
-                                                '⏱ ${item.prepTimeMinutes}m',
-                                                style: const TextStyle(color: Colors.white, fontSize: 11),
-                                              ),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-
-                                      // Details
-                                      Padding(
-                                        padding: const EdgeInsets.all(12.0),
-                                        child: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
-                                          children: [
-                                            Text(
-                                              item.getLocalizedName(kioskVM.selectedLanguage),
-                                              style: const TextStyle(
-                                                fontSize: 16,
-                                                fontWeight: FontWeight.bold,
-                                                color: Colors.white,
-                                              ),
-                                              maxLines: 1,
-                                              overflow: TextOverflow.ellipsis,
-                                            ),
-                                            const SizedBox(height: 4),
-                                            Text(
-                                              item.getLocalizedDescription(kioskVM.selectedLanguage),
-                                              style: const TextStyle(fontSize: 12, color: Colors.white60),
-                                              maxLines: 2,
-                                              overflow: TextOverflow.ellipsis,
-                                            ),
-                                            const SizedBox(height: 12),
-                                            Row(
-                                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                              children: [
-                                                Text(
-                                                  '${AppConstants.currencySymbol}${item.price.toStringAsFixed(0)}',
-                                                  style: const TextStyle(
-                                                    fontSize: 18,
-                                                    fontWeight: FontWeight.bold,
-                                                    color: AppTheme.primary,
-                                                  ),
-                                                ),
-                                                ElevatedButton(
-                                                  onPressed: item.isAvailable ? () => _openCustomizer(item) : null,
-                                                  style: ElevatedButton.styleFrom(
-                                                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                                                    backgroundColor: item.isAvailable ? AppTheme.primary : Colors.grey,
-                                                  ),
-                                                  child: const Text('Add', style: TextStyle(fontSize: 13)),
-                                                ),
-                                              ],
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              );
+                              return _buildDishCard(context, item, kioskVM);
                             },
                           );
                         },
@@ -402,56 +378,213 @@ class _MenuScreenState extends State<MenuScreen> {
           ),
         ],
       ),
+    );
+  }
 
-      // Floating Cart Button
-      bottomNavigationBar: cartVM.isEmpty
-          ? null
-          : Container(
-              padding: const EdgeInsets.all(16),
-              decoration: const BoxDecoration(
-                color: AppTheme.darkCard,
-                border: Border(top: BorderSide(color: AppTheme.darkBorder)),
-              ),
-              child: SafeArea(
-                child: SizedBox(
-                  height: 52,
-                  child: ElevatedButton(
-                    onPressed: () => _scaffoldKey.currentState?.openEndDrawer(),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppTheme.primary,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Row(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                              decoration: BoxDecoration(
-                                color: Colors.black26,
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: Text(
-                                '${cartVM.itemCount} items',
-                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-                              ),
-                            ),
-                            const SizedBox(width: 10),
-                            const Text('View Cart & Split Bill', style: TextStyle(fontSize: 15)),
-                          ],
+  Widget _buildDishCard(BuildContext context, MenuItem item, KioskViewModel kioskVM) {
+    return Container(
+      decoration: BoxDecoration(
+        color: const Color(0xFF0F172A),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFF1E293B)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.25),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: item.isAvailable ? () => _openCustomizer(item) : null,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Image with Badges
+            Expanded(
+              flex: 5,
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  item.imageUrl != null
+                      ? Image.network(
+                          item.imageUrl!,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => Container(
+                            color: const Color(0xFF020617),
+                            child: const Icon(Icons.restaurant, color: Color(0xFFF59E0B), size: 40),
+                          ),
+                        )
+                      : Container(
+                          color: const Color(0xFF020617),
+                          child: const Icon(Icons.restaurant, color: Color(0xFFF59E0B), size: 40),
                         ),
+                  // Dark Vignette
+                  Container(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [
+                          Colors.black.withValues(alpha: 0.3),
+                          Colors.transparent,
+                          Colors.black.withValues(alpha: 0.4),
+                        ],
+                      ),
+                    ),
+                  ),
+                  // Veg / Non-Veg Tag
+                  Positioned(
+                    top: 8,
+                    left: 8,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withValues(alpha: 0.75),
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(
+                          color: item.isVeg ? const Color(0xFF10B981) : Colors.redAccent,
+                          width: 1,
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.circle,
+                            size: 8,
+                            color: item.isVeg ? const Color(0xFF10B981) : Colors.redAccent,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            item.isVeg ? 'Veg' : 'Non-Veg',
+                            style: TextStyle(
+                              color: item.isVeg ? const Color(0xFF10B981) : Colors.redAccent,
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  // Rating & Prep Time
+                  Positioned(
+                    top: 8,
+                    right: 8,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withValues(alpha: 0.75),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.star_rounded, size: 12, color: Color(0xFFF59E0B)),
+                          const SizedBox(width: 3),
+                          Text(
+                            item.rating.toStringAsFixed(1),
+                            style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                          ),
+                          const SizedBox(width: 6),
+                          const Icon(Icons.access_time_rounded, size: 11, color: Color(0xFFCBD5E1)),
+                          const SizedBox(width: 3),
+                          Text(
+                            '${item.prepTimeMinutes}m',
+                            style: const TextStyle(color: Color(0xFFCBD5E1), fontSize: 10),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  if (!item.isAvailable)
+                    Container(
+                      color: Colors.black.withValues(alpha: 0.7),
+                      child: const Center(
+                        child: Text(
+                          'SOLD OUT',
+                          style: TextStyle(
+                            color: Colors.redAccent,
+                            fontSize: 18,
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: 2,
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+
+            // Content Info
+            Expanded(
+              flex: 4,
+              child: Padding(
+                padding: const EdgeInsets.all(12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
                         Text(
-                          '${AppConstants.currencySymbol}${cartVM.total.toStringAsFixed(0)}',
-                          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                          item.getLocalizedName(kioskVM.selectedLanguage),
+                          style: const TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          item.getLocalizedDescription(kioskVM.selectedLanguage),
+                          style: const TextStyle(
+                            fontSize: 11,
+                            color: Color(0xFF94A3B8),
+                            height: 1.3,
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ],
                     ),
-                  ),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          '₹${item.price.toStringAsFixed(0)}',
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w900,
+                            color: Color(0xFFF59E0B),
+                          ),
+                        ),
+                        ElevatedButton.icon(
+                          onPressed: item.isAvailable ? () => _openCustomizer(item) : null,
+                          icon: const Icon(Icons.add, size: 14),
+                          label: const Text('Add', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFFEA580C),
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                            elevation: 2,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
               ),
             ),
+          ],
+        ),
+      ),
     );
   }
 }
-

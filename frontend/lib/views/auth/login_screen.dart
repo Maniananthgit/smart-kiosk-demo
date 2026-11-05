@@ -77,7 +77,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         Container(
                           padding: const EdgeInsets.all(10),
                           decoration: BoxDecoration(
-                            color: AppTheme.primary.withOpacity(0.2),
+                            color: AppTheme.primary.withValues(alpha: 0.2),
                             borderRadius: BorderRadius.circular(10),
                           ),
                           child: const Icon(Icons.lock_outline, color: AppTheme.primary, size: 28),
@@ -104,7 +104,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       Container(
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
-                          color: AppTheme.errorRed.withOpacity(0.15),
+                          color: AppTheme.errorRed.withValues(alpha: 0.15),
                           borderRadius: BorderRadius.circular(8),
                           border: Border.all(color: AppTheme.errorRed),
                         ),
@@ -171,7 +171,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       subtitle: const Text('Encrypts payload before wire transmission',
                           style: TextStyle(color: Colors.white60, fontSize: 12)),
                       value: _useRSAEncryption,
-                      activeColor: AppTheme.primary,
+                      activeThumbColor: AppTheme.primary,
                       onChanged: (val) => setState(() => _useRSAEncryption = val),
                     ),
                     const SizedBox(height: 20),

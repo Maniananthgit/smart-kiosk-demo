@@ -122,7 +122,7 @@ class _OrderTrackerScreenState extends State<OrderTrackerScreen> {
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                               decoration: BoxDecoration(
-                                color: AppTheme.primary.withOpacity(0.2),
+                                color: AppTheme.primary.withValues(alpha: 0.2),
                                 borderRadius: BorderRadius.circular(20),
                                 border: Border.all(color: AppTheme.primary),
                               ),
@@ -305,7 +305,7 @@ class _OrderTrackerScreenState extends State<OrderTrackerScreen> {
                                   return FilterChip(
                                     label: Text(tag),
                                     selected: isSelected,
-                                    selectedColor: AppTheme.primary.withOpacity(0.2),
+                                    selectedColor: AppTheme.primary.withValues(alpha: 0.2),
                                     backgroundColor: AppTheme.darkBg,
                                     labelStyle: TextStyle(
                                       color: isSelected ? AppTheme.primary : Colors.white70,

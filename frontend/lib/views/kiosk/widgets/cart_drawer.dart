@@ -54,7 +54,7 @@ class CartDrawer extends StatelessWidget {
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Icon(Icons.shopping_cart_outlined, size: 64, color: Colors.white.withOpacity(0.2)),
+                          Icon(Icons.shopping_cart_outlined, size: 64, color: Colors.white.withValues(alpha: 0.2)),
                           const SizedBox(height: 16),
                           const Text(
                             'Your cart is empty',
