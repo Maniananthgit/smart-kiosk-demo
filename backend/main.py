@@ -16,10 +16,13 @@ async def lifespan(app: FastAPI):
     try:
         async with engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
+    except Exception as exc:
+        print(f"[Warning] Lifespan schema setup bypassed: {exc}")
 
     # Seed initial admin and sample data if database is empty
-    async with AsyncSessionLocal() as session:
-        user_res = await session.execute(select(User).where(User.username == "admin"))
+    try:
+        async with AsyncSessionLocal() as session:
+            user_res = await session.execute(select(User).where(User.username == "admin"))
         if not user_res.scalar_one_or_none():
             admin_user = User(
                 username="admin",
