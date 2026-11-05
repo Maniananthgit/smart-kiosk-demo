@@ -317,10 +317,38 @@ class _MenuScreenState extends State<MenuScreen> {
               child: ListView.separated(
                 scrollDirection: Axis.horizontal,
                 padding: const EdgeInsets.symmetric(horizontal: 16),
-                itemCount: kioskVM.categories.length,
+                itemCount: kioskVM.categories.length + 1,
                 separatorBuilder: (_, __) => const SizedBox(width: 8),
                 itemBuilder: (context, idx) {
-                  final cat = kioskVM.categories[idx];
+                  if (idx == 0) {
+                    final isAllSelected = kioskVM.selectedCategoryId == null;
+                    return ChoiceChip(
+                      label: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.auto_awesome, size: 14, color: Color(0xFFF59E0B)),
+                          SizedBox(width: 5),
+                          Text('All Dishes'),
+                        ],
+                      ),
+                      selected: isAllSelected,
+                      selectedColor: const Color(0xFFEA580C),
+                      backgroundColor: const Color(0xFF020617),
+                      side: BorderSide(
+                        color: isAllSelected ? const Color(0xFFEA580C) : const Color(0xFF1E293B),
+                      ),
+                      labelStyle: TextStyle(
+                        color: isAllSelected ? Colors.white : const Color(0xFF94A3B8),
+                        fontWeight: isAllSelected ? FontWeight.w900 : FontWeight.w600,
+                        fontSize: 12,
+                      ),
+                      onSelected: (val) {
+                        if (val) kioskVM.selectCategory(null);
+                      },
+                    );
+                  }
+
+                  final cat = kioskVM.categories[idx - 1];
                   final isSelected = kioskVM.selectedCategoryId == cat.id;
                   return ChoiceChip(
                     label: Text(cat.getLocalizedName(kioskVM.selectedLanguage)),

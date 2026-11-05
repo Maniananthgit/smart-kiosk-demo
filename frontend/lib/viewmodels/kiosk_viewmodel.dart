@@ -88,9 +88,8 @@ class KioskViewModel extends ChangeNotifier {
       _menuItems = fetchedItems;
       _combos = fetchedCombos;
 
-      if (_categories.isNotEmpty && _selectedCategoryId == null) {
-        _selectedCategoryId = _categories.first.id;
-      }
+      // Default to null so all dishes are visible initially
+      _selectedCategoryId = null;
       _isLoading = false;
       notifyListeners();
     } catch (e) {
