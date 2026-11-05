@@ -23,7 +23,6 @@ class _KitchenKdsScreenState extends State<KitchenKdsScreen> {
   }
 
   void _showInventoryDialog() {
-    final kitchenVM = context.read<KitchenViewModel>();
     showDialog(
       context: context,
       builder: (context) {
