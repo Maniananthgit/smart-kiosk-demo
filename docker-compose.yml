@@ -1,22 +1,109 @@
 version: '3.8'
 
 services:
-  frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
-    ports:
-      - "5173:5173"
+  # 1. PostgreSQL 16 Relational Database
+  postgres:
+    image: postgres:16-alpine
+    container_name: smart_kiosk_postgres
+    restart: unless-stopped
     environment:
-      - VITE_API_URL=http://backend:8000
-    depends_on:
-      - backend
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-smart_kiosk_db}
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./database/init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+      - ./database/seed_data.sql:/docker-entrypoint-initdb.d/02-seed.sql:ro
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d smart_kiosk_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - kiosk_net
 
+  # 2. Redis 7 In-Memory Cache & Celery Broker
+  redis:
+    image: redis:7-alpine
+    container_name: smart_kiosk_redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - kiosk_net
+
+  # 3. Python FastAPI & SQLAlchemy Backend Service
   backend:
     build:
       context: ./backend
       dockerfile: Dockerfile
+    container_name: smart_kiosk_backend
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-smart_kiosk_db}
+      REDIS_URL: redis://redis:6379/0
+      CELERY_BROKER_URL: redis://redis:6379/1
+      CELERY_RESULT_BACKEND: redis://redis:6379/2
+      JWT_SECRET: ${JWT_SECRET:-orderease_super_secure_jwt_secret_key_2026_!@#$%^}
     ports:
       - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - kiosk_net
+
+  # 4. Celery Asynchronous Background Worker
+  celery_worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: smart_kiosk_celery_worker
+    restart: unless-stopped
+    command: celery -A kiosk_backend.workers.celery_app.celery_app worker --loglevel=info
     environment:
-      - ENVIRONMENT=production
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-smart_kiosk_db}
+      REDIS_URL: redis://redis:6379/0
+      CELERY_BROKER_URL: redis://redis:6379/1
+      CELERY_RESULT_BACKEND: redis://redis:6379/2
+      JWT_SECRET: ${JWT_SECRET:-orderease_super_secure_jwt_secret_key_2026_!@#$%^}
+    depends_on:
+      redis:
+        condition: service_healthy
+      backend:
+        condition: service_started
+    networks:
+      - kiosk_net
+
+  # 5. Flutter Web Front-end Client (Nginx)
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: smart_kiosk_frontend
+    restart: unless-stopped
+    ports:
+      - "5174:80"
+    depends_on:
+      - backend
+    networks:
+      - kiosk_net
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  kiosk_net:
+    driver: bridge

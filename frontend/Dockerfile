@@ -1,15 +1,23 @@
-FROM node:20-alpine AS builder
-WORKDIR /app
-COPY package*.json ./
-RUN npm install
-COPY . .
-RUN npm run build
+# Stage 1: Build Flutter Web application
+FROM ghcr.io/cirruslabs/flutter:3.24.5 AS build-env
 
-FROM node:20-alpine
 WORKDIR /app
-COPY package*.json ./
-RUN npm install --omit=dev
-COPY --from=builder /app/dist ./dist
-COPY vite.config.ts ./
-EXPOSE 5173
-CMD ["npx", "vite", "preview", "--port", "5173", "--host"]
+
+# Copy dependency configs
+COPY pubspec.yaml pubspec.lock ./
+RUN flutter pub get
+
+# Copy source code and build web bundle
+COPY . .
+RUN flutter build web --release
+
+# Stage 2: Serve using high-performance Nginx Linux container
+FROM nginx:alpine
+
+COPY --from=build-env /app/build/web /usr/share/nginx/html
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+
+EXPOSE 80
+
+CMD ["nginx", "-g", "daemon off;"]
+

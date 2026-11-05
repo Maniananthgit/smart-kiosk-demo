@@ -1,22 +1,137 @@
-"""
-OrderEase - Smart Table-Side Self-Ordering Kiosk
-Lightweight Demo Backend API (FastAPI)
-"""
-
-from fastapi import FastAPI, HTTPException
+from contextlib import asynccontextmanager
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel, Field
-from typing import List, Optional, Dict, Any
-from datetime import datetime
-import uuid
+from sqlalchemy import select
+
+from kiosk_backend.core.config import settings
+from kiosk_backend.core.database import engine, Base, AsyncSessionLocal
+from kiosk_backend.core.security import get_password_hash
+from kiosk_backend.models import User, Category, MenuItem, DiningTable, Combo, Order
+from kiosk_backend.api.v1.router import api_router
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Ensure database schema is created
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+
+    # Seed initial admin and sample data if database is empty
+    async with AsyncSessionLocal() as session:
+        user_res = await session.execute(select(User).where(User.username == "admin"))
+        if not user_res.scalar_one_or_none():
+            admin_user = User(
+                username="admin",
+                email="admin@orderease.com",
+                hashed_password=get_password_hash("Admin@123"),
+                full_name="System Administrator",
+                role="ADMIN"
+            )
+            chef_user = User(
+                username="chef",
+                email="chef@orderease.com",
+                hashed_password=get_password_hash("Chef@123"),
+                full_name="Executive Chef",
+                role="KITCHEN"
+            )
+            session.add_all([admin_user, chef_user])
+
+            # Seed Categories
+            cat_starters = Category(id="c1", slug="starters", name="Starters", name_tamil="தொடக்க உணவு", name_hindi="शुरुआती व्यंजन", name_telugu="స్టార్టర్స్", name_spanish="Entradas", display_order=1, icon="flame")
+            cat_biryani = Category(id="c2", slug="biryani", name="Biryani & Rice", name_tamil="பிரியாணி & சாதம்", name_hindi="बिरयानी और चावल", name_telugu="బిర్యానీ & అన్నం", name_spanish="Biryani y Arroz", display_order=2, icon="soup")
+            cat_mains = Category(id="c3", slug="mains", name="Main Course", name_tamil="முக்கிய உணவு", name_hindi="मुख्य व्यंजन", name_telugu="ప్రధాన వంటకాలు", name_spanish="Plato Principal", display_order=3, icon="restaurant")
+            cat_tandoor = Category(id="c4", slug="tandoor", name="Tandoor & Breads", name_tamil="தந்தூரி ரொட்டி", name_hindi="तंदूरी रोटियां", name_telugu="తందూరి రొట్టెలు", name_spanish="Panes Tandoor", display_order=4, icon="bakery_dining")
+            cat_desserts = Category(id="c5", slug="desserts", name="Desserts & Drinks", name_tamil="இனிப்பு & பானங்கள்", name_hindi="मिठाइयाँ और पेय", name_telugu="డెజర్ట్స్ & డ్రింక్స్", name_spanish="Postres y Bebidas", display_order=5, icon="local_cafe")
+            session.add_all([cat_starters, cat_biryani, cat_mains, cat_tandoor, cat_desserts])
+
+            # Seed Menu Items
+            items = [
+                MenuItem(
+                    id="m1", category_id="c3", name="Butter Chicken", name_tamil="பட்டர் சிக்கன்",
+                    name_hindi="बटर चिकन", name_telugu="బటర్ చికెన్", name_spanish="Pollo a la Mantequilla",
+                    description="Tender tandoori chicken simmered in a silky, rich makhani gravy infused with butter and kasuri methi.",
+                    description_tamil="வெண்ணெய் மற்றும் மென்மையான தக்காளி கிரேவியில் சமைக்கப்பட்ட தந்தூரி சிக்கன்.",
+                    price=320.0, cost_price=198.0, margin_percent=38, prep_time_minutes=12,
+                    image_url="https://images.unsplash.com/photo-1603894584373-5ac82b2ae398?auto=format&fit=crop&w=800&q=80",
+                    is_veg=False, is_spicy=True, is_signature=True, is_available=True, rating=4.9, calories=520,
+                    allergens=["Dairy", "Cashews"], customization_options=["Extra Gravy", "Boneless Only", "Butter Drizzle"],
+                    popularity_count=148
+                ),
+                MenuItem(
+                    id="m2", category_id="c1", name="Paneer Tikka", name_tamil="பன்னீர் டிக்கா",
+                    name_hindi="पनीर टिक्का", name_telugu="పనీర్ టిక్కా", name_spanish="Tikka de Paneer",
+                    description="Fresh cottage cheese cubes marinated in spiced yogurt and grilled in traditional clay tandoor with bell peppers.",
+                    description_tamil="தயிர் மசாலா கலவையில் ஊறிய சுவையான தந்தூரி பன்னீர் மற்றும் குடைமிளகாய்.",
+                    price=280.0, cost_price=162.0, margin_percent=42, prep_time_minutes=9,
+                    image_url="https://images.unsplash.com/photo-1599488615731-7e5c2823ff28?auto=format&fit=crop&w=800&q=80",
+                    is_veg=True, is_spicy=True, is_signature=True, is_available=True, rating=4.8, calories=380,
+                    allergens=["Dairy"], customization_options=["Mint Chutney Extra", "Less Spicy", "Well Roasted"],
+                    popularity_count=112
+                ),
+                MenuItem(
+                    id="m3", category_id="c2", name="Hyderabadi Mutton Biryani", name_tamil="ஹைதராபாதி மட்டன் பிரியாணி",
+                    name_hindi="हैदराबादी मटन बिरयानी", name_telugu="హైదరాబాదీ మటన్ బిర్యానీ", name_spanish="Biryani de Cordero",
+                    description="Fragrant aged basmati rice layered with succulent goat meat, slow-cooked on dum with royal saffron and aromatic spices.",
+                    description_tamil="நறுமண பாசுமதி அரிசியுடன் மென்மையான ஆட்டிறைச்சி சேர்த்து தம் முறையில் சமைக்கப்பட்ட ராஜ பிரியாணி.",
+                    price=420.0, cost_price=245.0, margin_percent=41, prep_time_minutes=15,
+                    image_url="https://images.unsplash.com/photo-1563379091339-03b21ab4a4f8?auto=format&fit=crop&w=800&q=80",
+                    is_veg=False, is_spicy=True, is_signature=True, is_available=True, rating=4.9, calories=680,
+                    allergens=["Dairy"], customization_options=["Mirchi Ka Salan", "Extra Raita", "Double Egg"],
+                    popularity_count=180
+                ),
+                MenuItem(
+                    id="m4", category_id="c4", name="Garlic Butter Naan", name_tamil="பூண்டு வெண்ணெய் நான்",
+                    name_hindi="लहसुन मक्खन नान", name_telugu="వెల్లుల్లి బటర్ నాన్", name_spanish="Naan de Ajo y Mantequilla",
+                    description="Soft leavened clay oven bread topped with crushed minced garlic and glazed with melted artisan butter.",
+                    description_tamil="தந்தூரி அடுப்பில் சுடப்பட்டு நறுக்கிய பூண்டு மற்றும் வெண்ணெய் பூசப்பட்ட மென்மையான நான்.",
+                    price=75.0, cost_price=24.0, margin_percent=68, prep_time_minutes=6,
+                    image_url="https://images.unsplash.com/photo-1626074353765-517a681e40be?auto=format&fit=crop&w=800&q=80",
+                    is_veg=True, is_spicy=False, is_signature=False, is_available=True, rating=4.7, calories=240,
+                    allergens=["Gluten", "Dairy"], customization_options=["Crispy", "Extra Butter", "Without Coriander"],
+                    popularity_count=210
+                ),
+                MenuItem(
+                    id="m5", category_id="c5", name="Royal Mango Kulfi", name_tamil="ராயல் மாம்பழ குல்பி",
+                    name_hindi="शाही आम कुल्फी", name_telugu="రాయల్ మామిడి కుల్ఫీ", name_spanish="Kulfi Real de Mango",
+                    description="Slow-reduced thickened milk infused with Alphonso mango pulp, saffron, cardamom, and sliced pistachios.",
+                    description_tamil="அல்போன்சா மாம்பழக்கூழ், குங்குமப்பூ மற்றும் பிஸ்தா கலந்த பாரம்பரிய சுவையான குல்பி ஐஸ்கிரீம்.",
+                    price=160.0, cost_price=62.0, margin_percent=61, prep_time_minutes=4,
+                    image_url="https://images.unsplash.com/photo-1579954115545-a95591f28bfc?auto=format&fit=crop&w=800&q=80",
+                    is_veg=True, is_spicy=False, is_signature=True, is_available=True, rating=4.9, calories=290,
+                    allergens=["Dairy", "Nuts"], customization_options=["Extra Dryfruits", "Rose Syrup"],
+                    popularity_count=95
+                )
+            ]
+            session.add_all(items)
+
+            # Combos
+            combo1 = Combo(
+                id="combo1",
+                title="Royal Biryani Feast",
+                title_tamil="ராஜ பிரியாணி விருந்து",
+                description="Pair Hyderabadi Mutton Biryani with Garlic Butter Naan & Mango Kulfi",
+                discount_amount=55.0,
+                badge_text="Save ₹55",
+                item_ids=["m3", "m4", "m5"]
+            )
+            session.add(combo1)
+
+            # Tables
+            for t_num in [1, 2, 3, 4, 5, 6, 7, 8, 12]:
+                session.add(DiningTable(table_number=t_num, section="Main Dining" if t_num <= 5 else "Family Lounge"))
+
+            await session.commit()
+
+    yield
+
 
 app = FastAPI(
-    title="OrderEase Kiosk API",
-    description="Backend synchronization and analytics service for OrderEase Table-Side Kiosks",
-    version="1.0.0"
+    title=settings.PROJECT_NAME,
+    version=settings.VERSION,
+    description="OrderEase Enterprise Table-Side Kiosk Backend (FastAPI, SQLAlchemy, PostgreSQL, Redis, Celery, JWT & RSA)",
+    lifespan=lifespan
 )
 
-# Enable CORS for local and cloud clients
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -25,231 +140,26 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# --- Data Models ---
-class MenuItem(BaseModel):
-    id: str
-    name: str
-    nameTamil: str
-    category: str
-    price: float
-    costPrice: float
-    marginPercent: int
-    prepTimeMinutes: int
-    popularityText: str
-    orderedTodayCount: int
-    description: str
-    descriptionTamil: str
-    image: str
-    isVeg: bool
-    isSpicy: bool
-    isAvailable: bool = True
-    calories: int
-    allergens: List[str]
-    customizationOptions: List[str]
+app.include_router(api_router, prefix=settings.API_V1_STR)
 
-class CartItemModel(BaseModel):
-    cartItemId: str
-    menuItemId: str
-    name: str
-    price: float
-    quantity: int
-    spiceLevel: str
-    customizations: List[str] = []
-    specialInstructions: str = ""
-    image: str
-    isVeg: bool
-
-class CreateOrderRequest(BaseModel):
-    tableNumber: int
-    items: List[CartItemModel]
-    subtotal: float
-    tax: float
-    tip: float = 0.0
-    total: float
-    paymentMethod: str = "UPI"
-    splitBillDetails: Optional[Dict[str, Any]] = None
-
-class OrderStatusUpdate(BaseModel):
-    status: str # NEW, PREPARING, READY, COMPLETED
-
-class WaiterCallRequest(BaseModel):
-    tableNumber: int
-    type: str # Need Assistance, Need Water, Need Bill, Other
-
-class FeedbackRequest(BaseModel):
-    orderNumber: int
-    tableNumber: int
-    rating: int
-    tags: List[str] = []
-    comment: str
-
-# --- In-Memory Seed Storage ---
-orders_db: List[Dict[str, Any]] = [
-    {
-        "id": "ORD-1022",
-        "orderNumber": 1022,
-        "tableNumber": 4,
-        "items": [
-            {"name": "Veg Dum Biryani", "quantity": 1, "price": 240, "spiceLevel": "Medium"}
-        ],
-        "total": 576,
-        "status": "COMPLETED",
-        "createdAt": datetime.utcnow().isoformat(),
-        "paymentStatus": "PAID"
-    },
-    {
-        "id": "ORD-1023",
-        "orderNumber": 1023,
-        "tableNumber": 8,
-        "items": [
-            {"name": "Butter Chicken", "quantity": 1, "price": 320, "spiceLevel": "Hot"},
-            {"name": "Garlic Butter Naan", "quantity": 3, "price": 60, "spiceLevel": "Mild"}
-        ],
-        "total": 550,
-        "status": "READY",
-        "createdAt": datetime.utcnow().isoformat(),
-        "paymentStatus": "PAID"
-    },
-    {
-        "id": "ORD-1024",
-        "orderNumber": 1024,
-        "tableNumber": 6,
-        "items": [
-            {"name": "Paneer Tikka", "quantity": 1, "price": 280, "spiceLevel": "Medium"},
-            {"name": "Crispy Masala Dosa", "quantity": 2, "price": 160, "spiceLevel": "Mild"}
-        ],
-        "total": 670,
-        "status": "PREPARING",
-        "createdAt": datetime.utcnow().isoformat(),
-        "paymentStatus": "PAID"
-    }
-]
-
-waiter_calls_db: List[Dict[str, Any]] = [
-    {
-        "id": "alert-1",
-        "tableNumber": 7,
-        "type": "Need Water",
-        "timestamp": datetime.utcnow().isoformat(),
-        "status": "PENDING"
-    }
-]
-
-feedback_db: List[Dict[str, Any]] = [
-    {
-        "id": "fb-1",
-        "orderNumber": 1019,
-        "tableNumber": 12,
-        "rating": 5,
-        "tags": ["Food Quality", "Speed of Service"],
-        "comment": "Butter Chicken was rich and delicious! Table ordering took less than 2 minutes.",
-        "timestamp": "Today, 1:45 PM"
-    },
-    {
-        "id": "fb-2",
-        "orderNumber": 1020,
-        "tableNumber": 5,
-        "rating": 5,
-        "tags": ["Kiosk Ease of Use", "Fast Service"],
-        "comment": "Very easy ordering experience. Great visual photos of the dishes!",
-        "timestamp": "Today, 2:10 PM"
-    }
-]
-
-# --- Endpoints ---
 @app.get("/")
 def root():
     return {
-        "service": "OrderEase Kiosk Backend",
+        "service": settings.PROJECT_NAME,
+        "version": settings.VERSION,
         "status": "online",
-        "version": "1.0.0",
-        "timestamp": datetime.utcnow().isoformat()
+        "docs": "/docs"
     }
 
 @app.get("/api/health")
 def health_check():
-    return {"status": "healthy", "database": "active", "active_orders": len(orders_db)}
-
-@app.get("/api/orders")
-def get_orders():
-    return {"orders": orders_db}
-
-@app.post("/api/orders")
-def create_order(req: CreateOrderRequest):
-    next_order_num = (orders_db[0]["orderNumber"] if orders_db else 1024) + 1
-    new_order = {
-        "id": f"ORD-{next_order_num}",
-        "orderNumber": next_order_num,
-        "tableNumber": req.tableNumber,
-        "items": [item.dict() for item in req.items],
-        "subtotal": req.subtotal,
-        "tax": req.tax,
-        "tip": req.tip,
-        "total": req.total,
-        "status": "NEW",
-        "createdAt": datetime.utcnow().isoformat(),
-        "paymentStatus": "PAID",
-        "paymentMethod": req.paymentMethod,
-        "splitBillDetails": req.splitBillDetails
-    }
-    orders_db.insert(0, new_order)
-    return {"success": True, "order": new_order}
-
-@app.patch("/api/orders/{order_id}/status")
-def update_order_status(order_id: str, update: OrderStatusUpdate):
-    for order in orders_db:
-        if order["id"] == order_id:
-            order["status"] = update.status
-            order["updatedAt"] = datetime.utcnow().isoformat()
-            return {"success": True, "order": order}
-    raise HTTPException(status_code=404, detail="Order not found")
-
-@app.get("/api/waiter-calls")
-def get_waiter_calls():
-    return {"alerts": waiter_calls_db}
-
-@app.post("/api/waiter-calls")
-def create_waiter_call(req: WaiterCallRequest):
-    new_alert = {
-        "id": f"alert-{uuid.uuid4().hex[:6]}",
-        "tableNumber": req.tableNumber,
-        "type": req.type,
-        "timestamp": datetime.utcnow().isoformat(),
-        "status": "PENDING"
-    }
-    waiter_calls_db.insert(0, new_alert)
-    return {"success": True, "alert": new_alert}
-
-@app.post("/api/feedback")
-def submit_feedback(req: FeedbackRequest):
-    new_fb = {
-        "id": f"fb-{uuid.uuid4().hex[:6]}",
-        "orderNumber": req.orderNumber,
-        "tableNumber": req.tableNumber,
-        "rating": req.rating,
-        "tags": req.tags,
-        "comment": req.comment,
-        "timestamp": "Just now"
-    }
-    feedback_db.insert(0, new_fb)
-    return {"success": True, "feedback": new_fb}
-
-@app.get("/api/analytics/kpis")
-def get_kpis():
     return {
-        "todaysSales": 48620,
-        "totalOrders": 148,
-        "averageOrderValue": 328,
-        "averageRating": 4.7,
-        "bestSellingDishes": [
-            {"name": "Butter Chicken", "orders": 48, "revenue": 15360, "margin": "38%"},
-            {"name": "Paneer Tikka", "orders": 42, "revenue": 11760, "margin": "42%"},
-            {"name": "Veg Dum Biryani", "orders": 51, "revenue": 12240, "margin": "51%"},
-            {"name": "Crispy Masala Dosa", "orders": 65, "revenue": 10400, "margin": "55%"},
-            {"name": "Cold Coffee Frappé", "orders": 58, "revenue": 8120, "margin": "58%"}
-        ]
+        "status": "healthy",
+        "service": settings.PROJECT_NAME,
+        "version": settings.VERSION
     }
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+
