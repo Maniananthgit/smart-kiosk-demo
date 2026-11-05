@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import 'package:smart_kiosk/core/theme/app_theme.dart';
 import 'package:smart_kiosk/models/menu_item.dart';
+import 'package:smart_kiosk/services/api_service.dart';
 import 'package:smart_kiosk/viewmodels/cart_viewmodel.dart';
 import 'package:smart_kiosk/viewmodels/kiosk_viewmodel.dart';
 import 'package:smart_kiosk/views/common/demo_navigation_bar.dart';
@@ -74,6 +75,99 @@ class _MenuScreenState extends State<MenuScreen> {
     );
   }
 
+  void _openOrderTracker(BuildContext context, int tableNumber) async {
+    final apiService = ApiService();
+    final orders = await apiService.getOrders(tableNumber: tableNumber);
+    if (!context.mounted) return;
+
+    if (orders.length > 1) {
+      showModalBottomSheet(
+        context: context,
+        backgroundColor: const Color(0xFF0F172A),
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          side: BorderSide(color: Color(0xFF1E293B)),
+        ),
+        builder: (ctx) {
+          return Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Table $tableNumber Orders',
+                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close, color: Colors.white70),
+                      onPressed: () => Navigator.pop(ctx),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                ...orders.map((o) {
+                  return Container(
+                    margin: const EdgeInsets.only(bottom: 10),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF1E293B),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: const Color(0xFF334155)),
+                    ),
+                    child: ListTile(
+                      title: Text(
+                        'Order #${o.orderNumber}',
+                        style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
+                      ),
+                      subtitle: Text(
+                        '${o.items.length} items • ₹${o.total.toStringAsFixed(0)} • ${o.createdAt}',
+                        style: const TextStyle(color: Colors.white60, fontSize: 12),
+                      ),
+                      trailing: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF10B981).withValues(alpha: 0.2),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: const Color(0xFF10B981)),
+                            ),
+                            child: Text(
+                              o.status,
+                              style: const TextStyle(
+                                color: Color(0xFF10B981),
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: Colors.white70),
+                        ],
+                      ),
+                      onTap: () {
+                        Navigator.pop(ctx);
+                        context.push('/tracker/${o.id}');
+                      },
+                    ),
+                  );
+                }),
+              ],
+            ),
+          );
+        },
+      );
+    } else if (orders.length == 1) {
+      context.push('/tracker/${orders.first.id}');
+    } else {
+      context.push('/tracker/ORD-1024');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final kioskVM = context.watch<KioskViewModel>();
@@ -84,8 +178,42 @@ class _MenuScreenState extends State<MenuScreen> {
       backgroundColor: const Color(0xFF020617),
       appBar: const DemoNavigationBar(currentRoute: '/kiosk'),
       endDrawer: const CartDrawer(),
-      floatingActionButton: cartVM.itemCount > 0
-          ? FloatingActionButton.extended(
+      floatingActionButton: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          FloatingActionButton.extended(
+            heroTag: 'track_order_fab',
+            onPressed: () => _openOrderTracker(context, kioskVM.tableNumber),
+            backgroundColor: const Color(0xFF0F172A),
+            elevation: 8,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(30),
+              side: const BorderSide(color: Color(0xFF10B981), width: 1.5),
+            ),
+            icon: const Icon(Icons.radar_rounded, color: Color(0xFF10B981), size: 18),
+            label: const Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'Track Order',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 13,
+                  ),
+                ),
+                SizedBox(width: 6),
+                CircleAvatar(
+                  radius: 3.5,
+                  backgroundColor: Color(0xFF10B981),
+                ),
+              ],
+            ),
+          ),
+          if (cartVM.itemCount > 0) ...[
+            const SizedBox(width: 10),
+            FloatingActionButton.extended(
+              heroTag: 'cart_fab',
               onPressed: () => _scaffoldKey.currentState?.openEndDrawer(),
               backgroundColor: const Color(0xFFEA580C),
               foregroundColor: Colors.white,
@@ -95,8 +223,10 @@ class _MenuScreenState extends State<MenuScreen> {
                 '${cartVM.itemCount} items • ₹${cartVM.total.toStringAsFixed(0)} | View Order →',
                 style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
               ),
-            )
-          : null,
+            ),
+          ],
+        ],
+      ),
       body: Column(
         children: [
           // 1. Top Sub-Header Bar (Table, Waiter, Language, Cart Button)
@@ -160,6 +290,41 @@ class _MenuScreenState extends State<MenuScreen> {
                   onPressed: _openWaiterDialog,
                   icon: const Icon(Icons.notifications_active_rounded, color: Color(0xFFF59E0B), size: 16),
                   label: const Text('Call Waiter', style: TextStyle(color: Color(0xFFF59E0B), fontSize: 12, fontWeight: FontWeight.bold)),
+                ),
+                const SizedBox(width: 8),
+
+                // Track Order Header Pill
+                InkWell(
+                  onTap: () => _openOrderTracker(context, kioskVM.tableNumber),
+                  borderRadius: BorderRadius.circular(20),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF10B981).withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: const Color(0xFF10B981)),
+                    ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.radar_rounded, size: 14, color: Color(0xFF10B981)),
+                        SizedBox(width: 5),
+                        Text(
+                          'Track Order',
+                          style: TextStyle(
+                            color: Color(0xFF10B981),
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        SizedBox(width: 5),
+                        CircleAvatar(
+                          radius: 3,
+                          backgroundColor: Color(0xFF10B981),
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
                 const SizedBox(width: 8),
 

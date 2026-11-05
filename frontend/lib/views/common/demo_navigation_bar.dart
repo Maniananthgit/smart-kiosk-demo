@@ -109,6 +109,12 @@ class DemoNavigationBar extends StatelessWidget implements PreferredSizeWidget {
                       onTap: () => context.go('/kiosk'),
                     ),
                     _buildTab(
+                      label: 'Track Order',
+                      icon: Icons.radar_rounded,
+                      isActive: currentRoute.startsWith('/tracker'),
+                      onTap: () => context.go('/tracker/ORD-1024'),
+                    ),
+                    _buildTab(
                       label: 'Kitchen KDS',
                       icon: Icons.soup_kitchen_rounded,
                       counter: activeOrdersCount > 0 ? '$activeOrdersCount' : '0',
