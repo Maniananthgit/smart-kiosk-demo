@@ -27,25 +27,21 @@ jobs:
           channel: 'stable'
           cache: true
 
-      - name: Enable Flutter Web & Install Dependencies
+      - name: Install Dependencies
         working-directory: ./frontend
-        run: |
-          flutter config --enable-web
-          flutter pub get
+        run: flutter pub get
 
       - name: Build Flutter Web App
         working-directory: ./frontend
-        run: |
-          flutter build web --release --base-href "/smart-kiosk-demo/" --no-tree-shake-icons
+        run: flutter build web --release --base-href /smart-kiosk-demo/
 
       - name: Copy index.html to 404.html for GoRouter routing
-        run: |
-          cp frontend/build/web/index.html frontend/build/web/404.html
+        run: cp frontend/build/web/index.html frontend/build/web/404.html
 
       - name: Upload Artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: ./frontend/build/web
+          path: frontend/build/web
 
   deploy:
     environment:

@@ -31,7 +31,7 @@ jobs:
         run: |
           cd backend
           export PYTHONPATH=.
-          pytest tests/ -v
+          python -m pytest tests/ -v
 
   frontend-tests:
     name: Frontend Test Suite (Flutter + Dart + Provider)
@@ -48,14 +48,12 @@ jobs:
           cache: true
 
       - name: Install Flutter Dependencies
-        run: |
-          cd frontend
-          flutter pub get
+        working-directory: ./frontend
+        run: flutter pub get
 
       - name: Run Flutter Widget & Unit Tests
-        run: |
-          cd frontend
-          flutter test --coverage
+        working-directory: ./frontend
+        run: flutter test
 
   docker-lint:
     name: Docker & Docker Compose Verification
