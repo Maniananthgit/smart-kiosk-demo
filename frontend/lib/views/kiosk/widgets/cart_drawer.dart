@@ -285,10 +285,19 @@ class CartDrawer extends StatelessWidget {
                         onPressed: cartVM.isSubmitting
                             ? null
                             : () async {
+                                final navigator = Navigator.of(context);
+                                final messenger = ScaffoldMessenger.of(context);
                                 final order = await cartVM.submitOrder(kioskVM.tableNumber);
                                 if (order != null && context.mounted) {
-                                  Navigator.of(context).pop(); // Close drawer
+                                  navigator.pop(); // Close drawer
                                   context.push('/tracker/${order.id}');
+                                } else if (cartVM.errorMessage != null && context.mounted) {
+                                  messenger.showSnackBar(
+                                    SnackBar(
+                                      content: Text(cartVM.errorMessage!),
+                                      backgroundColor: AppTheme.errorRed,
+                                    ),
+                                  );
                                 }
                               },
                         child: cartVM.isSubmitting

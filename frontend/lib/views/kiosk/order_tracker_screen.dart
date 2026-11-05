@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:smart_kiosk/core/constants/app_constants.dart';
 import 'package:smart_kiosk/core/theme/app_theme.dart';
 import 'package:smart_kiosk/viewmodels/order_tracker_viewmodel.dart';
+import 'package:smart_kiosk/viewmodels/kitchen_viewmodel.dart';
 
 class OrderTrackerScreen extends StatefulWidget {
   final String orderId;
@@ -63,6 +64,33 @@ class _OrderTrackerScreenState extends State<OrderTrackerScreen> {
     final order = trackerVM.order;
 
     if (trackerVM.isLoading || order == null) {
+      if (!trackerVM.isLoading && order == null) {
+        return Scaffold(
+          backgroundColor: AppTheme.darkBg,
+          appBar: AppBar(
+            title: const Text('Order Status'),
+            leading: IconButton(
+              icon: const Icon(Icons.arrow_back),
+              onPressed: () => context.go('/kiosk'),
+            ),
+          ),
+          body: Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.receipt_long, size: 64, color: Colors.white38),
+                const SizedBox(height: 16),
+                const Text('Order not found', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 12),
+                ElevatedButton(
+                  onPressed: () => context.go('/kiosk'),
+                  child: const Text('Back to Menu'),
+                ),
+              ],
+            ),
+          ),
+        );
+      }
       return Scaffold(
         backgroundColor: AppTheme.darkBg,
         body: const Center(child: CircularProgressIndicator(color: AppTheme.primary)),
@@ -150,6 +178,40 @@ class _OrderTrackerScreenState extends State<OrderTrackerScreen> {
                             _buildStepLine(currentStep >= 3),
                             _buildStep(3, 'Completed', currentStep >= 3, Icons.done_all),
                           ],
+                        ),
+                        const SizedBox(height: 18),
+                        // Demo Simulator Action
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: OutlinedButton.icon(
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: AppTheme.accent,
+                              side: const BorderSide(color: AppTheme.accent),
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            ),
+                            onPressed: () async {
+                              final nextStatus = currentStep == 0
+                                  ? 'PREPARING'
+                                  : currentStep == 1
+                                      ? 'READY'
+                                      : currentStep == 2
+                                          ? 'COMPLETED'
+                                          : 'NEW';
+                              await context.read<KitchenViewModel>().bumpOrderStatus(order.id, nextStatus);
+                              await trackerVM.refresh();
+                            },
+                            icon: const Icon(Icons.fast_forward_rounded, size: 16),
+                            label: Text(
+                              currentStep == 0
+                                  ? 'Simulate Kitchen: Start Preparing →'
+                                  : currentStep == 1
+                                      ? 'Simulate Kitchen: Mark Ready →'
+                                      : currentStep == 2
+                                          ? 'Simulate Kitchen: Mark Completed →'
+                                          : 'Reset to New Order',
+                              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                            ),
+                          ),
                         ),
                       ],
                     ),

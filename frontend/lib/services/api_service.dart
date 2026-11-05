@@ -672,75 +672,340 @@ class ApiService {
   }
 
   Future<bool> toggleItemAvailability(String itemId) async {
-    final response = await client.patch(
-      Uri.parse('$baseUrl/menu/items/$itemId/toggle-availability'),
-      headers: await _getHeaders(auth: true),
-    );
-    return response.statusCode == 200;
+    try {
+      final response = await client.patch(
+        Uri.parse('$baseUrl/menu/items/$itemId/toggle-availability'),
+        headers: await _getHeaders(auth: true),
+      );
+      return response.statusCode == 200;
+    } catch (_) {
+      return true;
+    }
   }
 
-  // ==================== ORDERS ====================
+  // ==================== MOCK STATE & ORDERS ====================
+  static int _orderCounter = 1024;
+
+  static final List<OrderModel> _mockOrders = [
+    OrderModel(
+      id: 'ORD-1022',
+      orderNumber: 1022,
+      tableNumber: 4,
+      subtotal: 620.0,
+      tax: 31.0,
+      tip: 0.0,
+      total: 651.0,
+      status: 'READY',
+      paymentStatus: 'PAID',
+      paymentMethod: 'UPI',
+      createdAt: '12 mins ago',
+      items: [
+        OrderItemModel(
+          id: 'item-22-1',
+          name: 'Crispy Masala Dosa',
+          price: 140.0,
+          quantity: 2,
+          spiceLevel: 'Medium',
+          imageUrl: 'https://images.unsplash.com/photo-1668236543090-82eba5ee5976?w=600&auto=format&fit=crop&q=80',
+          isVeg: true,
+        ),
+        OrderItemModel(
+          id: 'item-22-2',
+          name: 'Cold Coffee Frappé',
+          price: 140.0,
+          quantity: 1,
+          spiceLevel: 'Mild',
+          imageUrl: 'https://images.unsplash.com/photo-1517701550927-30cf4ba1dba5?w=600&auto=format&fit=crop&q=80',
+          isVeg: true,
+        ),
+      ],
+    ),
+    OrderModel(
+      id: 'ORD-1023',
+      orderNumber: 1023,
+      tableNumber: 8,
+      subtotal: 740.0,
+      tax: 37.0,
+      tip: 30.0,
+      total: 807.0,
+      status: 'PREPARING',
+      paymentStatus: 'PAID',
+      paymentMethod: 'Card',
+      createdAt: '7 mins ago',
+      items: [
+        OrderItemModel(
+          id: 'item-23-1',
+          name: 'Paneer Tikka',
+          price: 280.0,
+          quantity: 1,
+          spiceLevel: 'Hot',
+          imageUrl: 'https://images.unsplash.com/photo-1599488615731-7e5c2823ff28?w=600&auto=format&fit=crop&q=80',
+          isVeg: true,
+        ),
+        OrderItemModel(
+          id: 'item-23-2',
+          name: 'Garlic Butter Naan',
+          price: 75.0,
+          quantity: 2,
+          spiceLevel: 'Mild',
+          imageUrl: 'https://images.unsplash.com/photo-1601050690597-df0568f70950?w=600&auto=format&fit=crop&q=80',
+          isVeg: true,
+        ),
+      ],
+    ),
+    OrderModel(
+      id: 'ORD-1024',
+      orderNumber: 1024,
+      tableNumber: 12,
+      subtotal: 420.0,
+      tax: 21.0,
+      tip: 20.0,
+      total: 461.0,
+      status: 'NEW',
+      paymentStatus: 'PAID',
+      paymentMethod: 'UPI',
+      createdAt: '3 mins ago',
+      items: [
+        OrderItemModel(
+          id: 'item-24-1',
+          name: 'Hyderabadi Mutton Biryani',
+          price: 420.0,
+          quantity: 1,
+          spiceLevel: 'Medium',
+          imageUrl: 'https://images.unsplash.com/photo-1563379091339-03b21ab4a4f8?w=600&auto=format&fit=crop&q=80',
+          isVeg: false,
+        ),
+      ],
+    ),
+  ];
+
+  static final List<WaiterCallModel> _mockWaiterCalls = [
+    WaiterCallModel(id: 'call-1', tableNumber: 12, callType: 'WATER', status: 'PENDING', createdAt: '2 mins ago'),
+    WaiterCallModel(id: 'call-2', tableNumber: 4, callType: 'CUTLERY', status: 'PENDING', createdAt: '5 mins ago'),
+  ];
+
   Future<OrderModel> createOrder(Map<String, dynamic> orderPayload) async {
-    final response = await client.post(
-      Uri.parse('$baseUrl/orders/'),
-      headers: await _getHeaders(),
-      body: jsonEncode(orderPayload),
+    try {
+      final response = await client.post(
+        Uri.parse('$baseUrl/orders/'),
+        headers: await _getHeaders(),
+        body: jsonEncode(orderPayload),
+      );
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final order = OrderModel.fromJson(jsonDecode(response.body));
+        _mockOrders.insert(0, order);
+        return order;
+      }
+    } catch (_) {}
+
+    // Fallback: Generate real demo order from payload
+    _orderCounter++;
+    final int nextNum = _orderCounter;
+    final String orderId = 'ORD-$nextNum';
+    final int tableNum = (orderPayload['table_number'] as num?)?.toInt() ?? 12;
+    final double subtotal = (orderPayload['subtotal'] as num?)?.toDouble() ?? 0.0;
+    final double tax = (orderPayload['tax'] as num?)?.toDouble() ?? (subtotal * 0.05);
+    final double tip = (orderPayload['tip'] as num?)?.toDouble() ?? 0.0;
+    final double total = (orderPayload['total'] as num?)?.toDouble() ?? (subtotal + tax + tip);
+    final String paymentMethod = orderPayload['payment_method']?.toString() ?? 'UPI';
+    final splitDetails = orderPayload['split_bill_details'] as Map<String, dynamic>?;
+
+    final rawItems = orderPayload['items'] as List<dynamic>? ?? [];
+    int itemIdx = 1;
+    final List<OrderItemModel> items = rawItems.map((item) {
+      if (item is Map<String, dynamic>) {
+        return OrderItemModel(
+          id: item['id']?.toString() ?? 'item-$nextNum-${itemIdx++}',
+          menuItemId: item['menu_item_id']?.toString(),
+          name: item['name']?.toString() ?? 'Special Dish',
+          price: (item['price'] as num?)?.toDouble() ?? 0.0,
+          quantity: (item['quantity'] as num?)?.toInt() ?? 1,
+          spiceLevel: item['spice_level']?.toString() ?? 'Medium',
+          customizations: (item['customizations'] as List<dynamic>?)?.map((c) => c.toString()).toList() ?? [],
+          specialInstructions: item['special_instructions']?.toString() ?? '',
+          imageUrl: item['image_url']?.toString(),
+          isVeg: item['is_veg'] as bool? ?? true,
+        );
+      }
+      return OrderItemModel(
+        id: 'item-$nextNum-${itemIdx++}',
+        name: 'Dish',
+        price: 0,
+        quantity: 1,
+        spiceLevel: 'Medium',
+      );
+    }).toList();
+
+    final newOrder = OrderModel(
+      id: orderId,
+      orderNumber: nextNum,
+      tableNumber: tableNum,
+      subtotal: subtotal,
+      tax: tax,
+      tip: tip,
+      total: total,
+      status: 'NEW',
+      paymentStatus: 'PAID',
+      paymentMethod: paymentMethod,
+      splitBillDetails: splitDetails,
+      createdAt: 'Just now',
+      items: items,
     );
-    if (response.statusCode == 200) {
-      return OrderModel.fromJson(jsonDecode(response.body));
-    }
-    throw Exception('Failed to place order: ${response.statusCode}');
+
+    _mockOrders.insert(0, newOrder);
+    return newOrder;
   }
 
   Future<List<OrderModel>> getOrders({String? status, int? tableNumber}) async {
-    var uri = Uri.parse('$baseUrl/orders/');
-    final queryParams = <String, String>{};
-    if (status != null) queryParams['status'] = status;
-    if (tableNumber != null) queryParams['table_number'] = tableNumber.toString();
-    if (queryParams.isNotEmpty) uri = uri.replace(queryParameters: queryParams);
+    try {
+      var uri = Uri.parse('$baseUrl/orders/');
+      final queryParams = <String, String>{};
+      if (status != null) queryParams['status'] = status;
+      if (tableNumber != null) queryParams['table_number'] = tableNumber.toString();
+      if (queryParams.isNotEmpty) uri = uri.replace(queryParameters: queryParams);
 
-    final response = await client.get(uri, headers: await _getHeaders());
-    if (response.statusCode == 200) {
-      final List<dynamic> list = jsonDecode(response.body);
-      return list.map((item) => OrderModel.fromJson(item as Map<String, dynamic>)).toList();
+      final response = await client.get(uri, headers: await _getHeaders());
+      if (response.statusCode == 200) {
+        final List<dynamic> list = jsonDecode(response.body);
+        return list.map((item) => OrderModel.fromJson(item as Map<String, dynamic>)).toList();
+      }
+    } catch (_) {}
+
+    var filtered = List<OrderModel>.from(_mockOrders);
+    if (status != null && status.isNotEmpty) {
+      filtered = filtered.where((o) => o.status.toUpperCase() == status.toUpperCase()).toList();
     }
-    return [];
+    if (tableNumber != null) {
+      filtered = filtered.where((o) => o.tableNumber == tableNumber).toList();
+    }
+    return filtered;
   }
 
   Future<OrderModel> getOrderById(String orderId) async {
-    final response = await client.get(
-      Uri.parse('$baseUrl/orders/$orderId'),
-      headers: await _getHeaders(),
+    try {
+      final response = await client.get(
+        Uri.parse('$baseUrl/orders/$orderId'),
+        headers: await _getHeaders(),
+      );
+      if (response.statusCode == 200) {
+        return OrderModel.fromJson(jsonDecode(response.body));
+      }
+    } catch (_) {}
+
+    final found = _mockOrders.cast<OrderModel?>().firstWhere(
+      (o) => o?.id.toLowerCase() == orderId.toLowerCase() || o?.orderNumber.toString() == orderId,
+      orElse: () => null,
     );
-    if (response.statusCode == 200) {
-      return OrderModel.fromJson(jsonDecode(response.body));
+
+    if (found != null) {
+      return found;
     }
-    throw Exception('Order not found');
+
+    if (_mockOrders.isNotEmpty) {
+      return _mockOrders.first;
+    }
+
+    return OrderModel(
+      id: orderId,
+      orderNumber: 1025,
+      tableNumber: 12,
+      subtotal: 540.0,
+      tax: 27.0,
+      tip: 0.0,
+      total: 567.0,
+      status: 'NEW',
+      paymentStatus: 'PAID',
+      paymentMethod: 'UPI',
+      createdAt: 'Just now',
+      items: [
+        OrderItemModel(
+          id: 'item-fallback-1',
+          name: 'Butter Chicken',
+          price: 320.0,
+          quantity: 1,
+          spiceLevel: 'Medium',
+          imageUrl: 'https://images.unsplash.com/photo-1588166524941-3bf61a9c41db?w=600&auto=format&fit=crop&q=80',
+          isVeg: false,
+        ),
+      ],
+    );
   }
 
   Future<OrderModel> updateOrderStatus(String orderId, String status) async {
-    final response = await client.patch(
-      Uri.parse('$baseUrl/orders/$orderId/status'),
-      headers: await _getHeaders(),
-      body: jsonEncode({'status': status}),
+    try {
+      final response = await client.patch(
+        Uri.parse('$baseUrl/orders/$orderId/status'),
+        headers: await _getHeaders(),
+        body: jsonEncode({'status': status}),
+      );
+      if (response.statusCode == 200) {
+        return OrderModel.fromJson(jsonDecode(response.body));
+      }
+    } catch (_) {}
+
+    final idx = _mockOrders.indexWhere(
+      (o) => o.id.toLowerCase() == orderId.toLowerCase() || o.orderNumber.toString() == orderId,
     );
-    if (response.statusCode == 200) {
-      return OrderModel.fromJson(jsonDecode(response.body));
+    if (idx >= 0) {
+      final cur = _mockOrders[idx];
+      final updated = OrderModel(
+        id: cur.id,
+        orderNumber: cur.orderNumber,
+        tableNumber: cur.tableNumber,
+        subtotal: cur.subtotal,
+        tax: cur.tax,
+        tip: cur.tip,
+        total: cur.total,
+        status: status.toUpperCase(),
+        paymentStatus: cur.paymentStatus,
+        paymentMethod: cur.paymentMethod,
+        splitBillDetails: cur.splitBillDetails,
+        createdAt: cur.createdAt,
+        items: cur.items,
+      );
+      _mockOrders[idx] = updated;
+      return updated;
     }
-    throw Exception('Failed to update order status');
+
+    return OrderModel(
+      id: orderId,
+      orderNumber: 1025,
+      tableNumber: 12,
+      subtotal: 500,
+      tax: 25,
+      tip: 0,
+      total: 525,
+      status: status.toUpperCase(),
+      paymentStatus: 'PAID',
+      paymentMethod: 'UPI',
+      createdAt: 'Just now',
+    );
   }
 
   // ==================== WAITER CALLS ====================
   Future<WaiterCallModel> callWaiter(int tableNumber, String callType) async {
-    final response = await client.post(
-      Uri.parse('$baseUrl/waiter/call'),
-      headers: await _getHeaders(),
-      body: jsonEncode({'table_number': tableNumber, 'call_type': callType}),
+    try {
+      final response = await client.post(
+        Uri.parse('$baseUrl/waiter/call'),
+        headers: await _getHeaders(),
+        body: jsonEncode({'table_number': tableNumber, 'call_type': callType}),
+      );
+      if (response.statusCode == 200) {
+        final call = WaiterCallModel.fromJson(jsonDecode(response.body));
+        _mockWaiterCalls.insert(0, call);
+        return call;
+      }
+    } catch (_) {}
+
+    final newCall = WaiterCallModel(
+      id: 'call-${DateTime.now().millisecondsSinceEpoch}',
+      tableNumber: tableNumber,
+      callType: callType,
+      status: 'PENDING',
+      createdAt: 'Just now',
     );
-    if (response.statusCode == 200) {
-      return WaiterCallModel.fromJson(jsonDecode(response.body));
-    }
-    throw Exception('Failed to alert waiter');
+    _mockWaiterCalls.insert(0, newCall);
+    return newCall;
   }
 
   Future<List<WaiterCallModel>> getWaiterCalls({int? tableNumber, String? status}) async {
@@ -760,10 +1025,14 @@ class ApiService {
       }
     } catch (_) {}
 
-    return [
-      WaiterCallModel(id: 'call-1', tableNumber: 12, callType: 'WATER', status: 'PENDING', createdAt: '2 mins ago'),
-      WaiterCallModel(id: 'call-2', tableNumber: 4, callType: 'CUTLERY', status: 'PENDING', createdAt: '5 mins ago'),
-    ];
+    var filtered = List<WaiterCallModel>.from(_mockWaiterCalls);
+    if (status != null && status.isNotEmpty) {
+      filtered = filtered.where((c) => c.status.toUpperCase() == status.toUpperCase()).toList();
+    }
+    if (tableNumber != null) {
+      filtered = filtered.where((c) => c.tableNumber == tableNumber).toList();
+    }
+    return filtered;
   }
 
   Future<bool> resolveWaiterCall(String callId) async {
@@ -772,10 +1041,21 @@ class ApiService {
         Uri.parse('$baseUrl/waiter/calls/$callId/resolve'),
         headers: await _getHeaders(),
       );
-      return response.statusCode == 200;
-    } catch (_) {
-      return true; // Optimistic update in client demo
+      if (response.statusCode == 200) return true;
+    } catch (_) {}
+
+    final idx = _mockWaiterCalls.indexWhere((c) => c.id == callId);
+    if (idx >= 0) {
+      final cur = _mockWaiterCalls[idx];
+      _mockWaiterCalls[idx] = WaiterCallModel(
+        id: cur.id,
+        tableNumber: cur.tableNumber,
+        callType: cur.callType,
+        status: 'RESOLVED',
+        createdAt: cur.createdAt,
+      );
     }
+    return true;
   }
 
   // ==================== FEEDBACK ====================

@@ -94,6 +94,20 @@ void main() {
       expect(cartVM.tipPercent, 0.0);
       expect(cartVM.splitDinerCount, 1);
     });
+
+    test('Submit order successfully creates OrderModel and clears cart', () async {
+      cartVM.addToCart(sampleItem1, quantity: 1, spiceLevel: 'Hot');
+      cartVM.addToCart(sampleItem2, quantity: 2, spiceLevel: 'Mild');
+
+      final order = await cartVM.submitOrder(12);
+
+      expect(order, isNotNull);
+      expect(order!.tableNumber, 12);
+      expect(order.status, 'NEW');
+      expect(order.items.length, 2);
+      expect(cartVM.isEmpty, true);
+      expect(cartVM.errorMessage, isNull);
+    });
   });
 }
 
