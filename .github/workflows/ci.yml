@@ -28,9 +28,11 @@ jobs:
           pip install -r requirements.txt
 
       - name: Run Backend Pytest Suite
+        env:
+          DATABASE_URL: sqlite+aiosqlite:///:memory:
+          PYTHONPATH: .
         run: |
           cd backend
-          export PYTHONPATH=.
           python -m pytest tests/ -v
 
   frontend-tests:

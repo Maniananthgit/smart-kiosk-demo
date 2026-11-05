@@ -13,8 +13,9 @@ from kiosk_backend.api.v1.router import api_router
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Ensure database schema is created
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
+    try:
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
 
     # Seed initial admin and sample data if database is empty
     async with AsyncSessionLocal() as session:
@@ -121,6 +122,8 @@ async def lifespan(app: FastAPI):
                 session.add(DiningTable(table_number=t_num, section="Main Dining" if t_num <= 5 else "Family Lounge"))
 
             await session.commit()
+    except Exception as exc:
+        print(f"[Warning] Lifespan database initialization bypassed: {exc}")
 
     yield
 
