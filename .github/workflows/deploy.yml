@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
   pages: write
   id-token: write
 
@@ -18,7 +18,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
+      - name: Checkout Repository
         uses: actions/checkout@v4
 
       - name: Set up Flutter
@@ -27,18 +27,22 @@ jobs:
           channel: 'stable'
           cache: true
 
-      - name: Install dependencies
+      - name: Enable Flutter Web & Install Dependencies
         working-directory: ./frontend
-        run: flutter pub get
+        run: |
+          flutter config --enable-web
+          flutter pub get
 
       - name: Build Flutter Web App
         working-directory: ./frontend
-        run: flutter build web --release --base-href "/smart-kiosk-demo/"
+        run: |
+          flutter build web --release --base-href "/smart-kiosk-demo/" --no-tree-shake-icons
 
       - name: Copy index.html to 404.html for GoRouter routing
-        run: cp frontend/build/web/index.html frontend/build/web/404.html
+        run: |
+          cp frontend/build/web/index.html frontend/build/web/404.html
 
-      - name: Upload artifact
+      - name: Upload Artifact
         uses: actions/upload-pages-artifact@v3
         with:
           path: ./frontend/build/web
