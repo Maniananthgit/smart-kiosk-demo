@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 
 import 'package:smart_kiosk/views/auth/login_screen.dart';
 import 'package:smart_kiosk/views/dashboard/management_dashboard_screen.dart';
+import 'package:smart_kiosk/views/hub/landing_hub_screen.dart';
 import 'package:smart_kiosk/views/kiosk/menu_screen.dart';
 import 'package:smart_kiosk/views/kiosk/order_tracker_screen.dart';
 import 'package:smart_kiosk/views/kiosk/welcome_screen.dart';
@@ -13,6 +14,12 @@ final GoRouter appRouter = GoRouter(
   routes: [
     GoRoute(
       path: '/',
+      builder: (BuildContext context, GoRouterState state) {
+        return const LandingHubScreen();
+      },
+    ),
+    GoRoute(
+      path: '/welcome',
       builder: (BuildContext context, GoRouterState state) {
         return const WelcomeScreen();
       },
@@ -48,6 +55,11 @@ final GoRouter appRouter = GoRouter(
         return const ManagementDashboardScreen();
       },
     ),
+    GoRoute(
+      path: '/management',
+      builder: (BuildContext context, GoRouterState state) {
+        return const ManagementDashboardScreen();
+      },
+    ),
   ],
 );
-
